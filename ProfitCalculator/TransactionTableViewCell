@@ -1,0 +1,65 @@
+import Foundation
+import UIKit
+
+class TransactionTableViewCell: UITableViewCell {
+    
+    let buyPriceLabel = UILabel()
+    let sellPriceLabel = UILabel()
+    let transactionNameLabel = UILabel()
+    let profitLabel = UILabel()
+    let transactionTimeLabel = UILabel()
+    
+    
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: style, reuseIdentifier: reuseIdentifier)
+        setupLabels()
+        setupStackView()
+    }
+    
+    required init?(coder aDecoder: NSCoder) {
+        super.init(coder: aDecoder)
+        setupLabels()
+        setupStackView()
+    }
+    
+    
+    private func setupLabels() {
+        [transactionTimeLabel, buyPriceLabel, sellPriceLabel, profitLabel, transactionNameLabel].forEach {
+            $0.textAlignment = .center
+            $0.font = UIFont.systemFont(ofSize: 16)
+            $0.translatesAutoresizingMaskIntoConstraints = false
+        }
+    }
+    
+    private func setupStackView() {
+        let stackView = UIStackView(arrangedSubviews: [transactionTimeLabel, buyPriceLabel, sellPriceLabel, profitLabel, transactionNameLabel])
+        stackView.axis = .horizontal
+        stackView.distribution = .fillEqually
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(stackView)
+        
+        NSLayoutConstraint.activate([
+            stackView.topAnchor.constraint(equalTo: contentView.topAnchor),
+            stackView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+            stackView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
+            stackView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor)
+        ])
+    }
+    
+    func configure(transactionTime: Date, buyPrice: Int16, sellPrice: Int16, profit: Double, transactionName: String){
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateStyle = .short
+        buyPriceLabel.text = "\(buyPrice)"
+        sellPriceLabel.text = "\(sellPrice)"
+        transactionNameLabel.text = "\(transactionName)"
+        profitLabel.text = "\(profit)"
+        transactionTimeLabel.text = "\(transactionTime)"
+    }
+    
+    func configureTotals(transactionTime: String, buyPrice: Int16, sellPrice: Int16, profit: Double, cardName: String){
+        transactionTimeLabel.text = "Totals"
+        buyPriceLabel.text = "\(buyPrice)"
+        sellPriceLabel.text = "\(sellPrice)"
+        profitLabel.text = "\(profit)"
+    }
+}
