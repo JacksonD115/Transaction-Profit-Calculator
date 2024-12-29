@@ -1,0 +1,191 @@
+import UIKit
+import CoreData
+
+class ViewController: UIViewController {
+    
+    let addTransactionButton: UIButton = {
+        let button = UIButton()
+        button.setTitle("Add Transaction", for: .normal)
+        button.backgroundColor = .systemBlue
+        button.layer.cornerRadius = 10
+        button.addTarget(self, action: #selector(addTransaction), for: .touchUpInside)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+    
+    let saveTaxRateButton: UIButton = {
+        let button = UIButton()
+        button.setTitle("Update Tax Rate", for: .normal)
+        button.backgroundColor = .systemGray
+        button.layer.cornerRadius = 10
+        button.addTarget(self, action: #selector(updateTax), for: .touchUpInside)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+    
+    let viewTransactionsButton: UIButton = {
+        let button = UIButton()
+        button.setTitle("View my Transactions", for: .normal)
+        button.backgroundColor = .green
+        button.layer.cornerRadius = 8
+        button.addTarget(self, action: #selector(viewTransactions), for: .touchUpInside)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        return button
+    }()
+    
+    let buyTextField: UITextField = {
+        let field = UITextField()
+        field.placeholder = "Enter Buy Price"
+        field.borderStyle = .roundedRect
+        field.translatesAutoresizingMaskIntoConstraints = false
+        return field
+    }()
+    
+    let sellTextField: UITextField = {
+        let field = UITextField()
+        field.placeholder = "Enter Sell Price"
+        field.borderStyle = .roundedRect
+        field.translatesAutoresizingMaskIntoConstraints = false
+        return field
+    }()
+    
+    let transactionNameTextField: UITextField = {
+        let field = UITextField()
+        field.placeholder = "Enter Transaction Name (Optional)"
+        field.borderStyle = .roundedRect
+        field.translatesAutoresizingMaskIntoConstraints = false
+        return field
+    }()
+    
+    let salesTaxTextField: UITextField = {
+        let field = UITextField()
+        field.placeholder = "Enter Sales Tax Rate (%)"
+        field.borderStyle = .roundedRect
+        field.translatesAutoresizingMaskIntoConstraints = false
+        return field
+    }()
+    
+    
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .white
+        
+        view.addSubview(addTransactionButton)
+        view.addSubview(buyTextField)
+        view.addSubview(sellTextField)
+        view.addSubview(transactionNameTextField)
+        view.addSubview(viewTransactionsButton)
+        view.addSubview(salesTaxTextField)
+        view.addSubview(saveTaxRateButton)
+        
+        NSLayoutConstraint.activate([
+            addTransactionButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            addTransactionButton.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: 150),
+            
+            buyTextField.centerXAnchor.constraint(equalTo: view.centerXAnchor, constant: -100),
+            buyTextField.centerYAnchor.constraint(equalTo: view.centerYAnchor, constant: -50),
+            
+            sellTextField.centerXAnchor.constraint(equalTo: view.centerXAnchor, constant: 100),
+            sellTextField.centerYAnchor.constraint(equalTo: buyTextField.centerYAnchor),
+            
+            
+            transactionNameTextField.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            transactionNameTextField.centerYAnchor.constraint(equalTo: addTransactionButton.centerYAnchor, constant: -100),
+            
+            viewTransactionsButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            viewTransactionsButton.topAnchor.constraint(equalTo: view.topAnchor, constant: 150),
+            
+            salesTaxTextField.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            salesTaxTextField.topAnchor.constraint(equalTo: addTransactionButton.bottomAnchor, constant: 50),
+            
+            saveTaxRateButton.topAnchor.constraint(equalTo: salesTaxTextField.bottomAnchor, constant: 25),
+            saveTaxRateButton.centerXAnchor.constraint(equalTo: view.centerXAnchor)
+        ])
+    }
+    
+    @objc func updateTax() {
+        let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+        
+        guard let salesTaxText = salesTaxTextField.text, let salesTax = Double(salesTaxText), !salesTaxText.isEmpty else {
+            self.showAlert(title: "Error", message: "Invalid value entered")
+            return
+        }
+        
+        let fetchRequest: NSFetchRequest<TaxRate> = TaxRate.fetchRequest()
+        do {
+            let taxRates = try context.fetch(fetchRequest)
+            let taxRateEntity: TaxRate
+            if let existingTaxRate = taxRates.first {
+                taxRateEntity = existingTaxRate
+            } else {
+                taxRateEntity = TaxRate(context: context)
+            }
+            taxRateEntity.taxRate = salesTax
+            try context.save()
+            self.showAlert(title: "Tax Rate Updated", message: "Tax rate on sales in now \(salesTax)%")
+            salesTaxTextField.text = ""
+        } catch {
+            print("Failed to update tax rate: \(error.localizedDescription)")
+        }
+    }
+    
+    @objc func addTransaction() {
+        let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+        
+        guard let buyPriceText = buyTextField.text, !buyPriceText.isEmpty,
+              let sellPriceText = sellTextField.text, !sellPriceText.isEmpty,
+              let buyPrice = Double(buyPriceText),
+              let sellPrice = Double(sellPriceText) else {
+            print("Set both buy and sell prices")
+            self.showAlert(title: "Transaction Incomplete", message: "You must set both buy and sell prices")
+            return
+        }
+        
+        let fetchRequest: NSFetchRequest<TaxRate> = TaxRate.fetchRequest()
+        var taxRateValue: Double = 0.0
+        
+        do {
+            let taxRates = try context.fetch(fetchRequest)
+            if let taxRateEntity = taxRates.first {
+                taxRateValue = taxRateEntity.taxRate
+            }
+        } catch {
+            print("\(error.localizedDescription)")
+        }
+        
+        let taxAmount = Double(sellPrice) * (taxRateValue / 100)
+        let profit = sellPrice - buyPrice - taxAmount
+        let roundedProfit = Double(String(format: "%.2f", profit)) ?? 0.0
+
+        let newTransaction = Transaction(context: context)
+        newTransaction.buyPrice = Double(buyTextField.text!) ?? 0.0
+        newTransaction.sellPrice = Double(sellTextField.text!) ?? 0.0
+        newTransaction.profit = roundedProfit
+        newTransaction.transactionTime = Date()
+
+        do {
+            try context.save()
+            print("Transaction Saved", "Buy Price: \(newTransaction.buyPrice)", "Sell Price: \(newTransaction.sellPrice)", "Profit: \(newTransaction.profit)", "Transaction Name: \(newTransaction.transactionName)")
+            self.showAlert(title: "Transaction Saved!", message: "Buy Price: \(newTransaction.buyPrice) \n Sell Price: \(newTransaction.sellPrice) \n Profit: \(newTransaction.profit) \n Transaction Name: \(newTransaction.transactionName)")
+            buyTextField.text = ""
+            sellTextField.text = ""
+            transactionNameTextField.text = ""
+        } catch {
+            print ("Failed to save: \(error.localizedDescription)")
+        }
+    }
+    
+    @objc func viewTransactions() {
+        let transactionsVC = ProfitViewController()
+        navigationController?.pushViewController(transactionsVC, animated: true)
+    }
+    
+    func showAlert(title: String, message: String) {
+        let alertController = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alertController.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alertController, animated: true, completion: nil)
+    }
+    
+}
+
