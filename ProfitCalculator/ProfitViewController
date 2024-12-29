@@ -1,0 +1,285 @@
+
+import Foundation
+import UIKit
+import CoreData
+
+class ProfitViewController: UIViewController, UITabBarDelegate, UITableViewDataSource, UITableViewDelegate {
+    
+    var transactions: [Transaction] = []
+    let scrollView = UIScrollView()
+    let tableView = UITableView()
+    
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        transactions.count + 1
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        
+        if indexPath.row == transactions.count {
+            let cell = tableView.dequeueReusableCell(withIdentifier: "TransactionCell", for: indexPath) as! TransactionTableViewCell
+            
+            var totalBuyPrice = 0
+            var totalSellPrice = 0
+            var totalProfit = 0
+            
+            for transaction in transactions {
+                totalBuyPrice += Int(transaction.buyPrice)
+                totalSellPrice += Int(transaction.sellPrice)
+                totalProfit += Int(transaction.profit)
+            }
+            cell.backgroundColor = UIColor.lightGray
+            
+            cell.configureTotals(transactionTime: "Totals", buyPrice: Int16(totalBuyPrice), sellPrice: Int16(totalSellPrice), profit: Double(totalProfit), cardName: " ")
+            return cell
+        } else {
+            
+            let transaction = transactions[indexPath.row]
+            let cell = tableView.dequeueReusableCell(withIdentifier: "TransactionCell", for: indexPath) as! TransactionTableViewCell
+            
+            let buyPrice = transaction.buyPrice
+            let sellPrice = transaction.sellPrice
+            let transactionName = transaction.transactionName ?? ""
+            let profit = transaction.profit
+            let transactionTime = transaction.transactionTime!
+            cell.configure(transactionTime: transactionTime, buyPrice: Int16(buyPrice), sellPrice: Int16(sellPrice), profit: profit, transactionName: transactionName)
+            return cell
+        }
+    }
+    
+    func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
+        if indexPath.row != transactions.count {
+            return true
+        }
+        return false
+    }
+    
+    func tableView(_ tableView: UITableView, editingStyleForRowAt indexPath: IndexPath) -> UITableViewCell.EditingStyle {
+        return .delete
+    }
+    
+    func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCell.EditingStyle, forRowAt indexPath: IndexPath) {
+        if editingStyle == .delete {
+            confirmDelete(at: indexPath)
+        }
+    }
+        
+
+
+    private func createTotalsFooter(totalBuyPrice: Int, totalSellPrice: Int, totalProfit: Int) -> UIView {
+        let footerView = UIView()
+        footerView.backgroundColor = .lightGray
+        
+        let transactionTimeLabel = createFooterLabel(withText: "Averages")
+        let buyPriceLabel = createFooterLabel(withText: "\(totalBuyPrice)")
+        let sellPriceLabel = createFooterLabel(withText: "\(totalSellPrice)")
+        let cardNameLabel = createFooterLabel(withText: "")
+        let profitLabel = createFooterLabel(withText: "\(totalProfit)")
+        
+        let labels = [transactionTimeLabel, buyPriceLabel, sellPriceLabel, cardNameLabel, profitLabel]
+        
+        let stackView = UIStackView(arrangedSubviews: labels)
+        stackView.axis = .horizontal
+        stackView.distribution = .fillEqually
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        footerView.addSubview(stackView)
+        
+        NSLayoutConstraint.activate([
+            stackView.topAnchor.constraint(equalTo: footerView.topAnchor),
+            stackView.bottomAnchor.constraint(equalTo: footerView.bottomAnchor),
+            stackView.leadingAnchor.constraint(equalTo: footerView.leadingAnchor),
+            stackView.trailingAnchor.constraint(equalTo: footerView.trailingAnchor)
+        ])
+        
+        footerView.frame = CGRect(x: 0, y: 0, width: 800, height: 60)
+        return footerView
+    }
+    
+    
+    private func createFooterLabel(withText text: String) -> UILabel {
+        let label = UILabel()
+        label.text = text
+        label.textAlignment = .center
+        label.font = UIFont.boldSystemFont(ofSize: 14)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .white
+        self.title = "My Transactions"
+        
+        tableView.frame = view.bounds
+        tableView.delegate = self
+        tableView.dataSource = self
+        tableView.translatesAutoresizingMaskIntoConstraints = false
+        tableView.register(TransactionTableViewCell.self, forCellReuseIdentifier: "TransactionCell")
+        view.addSubview(scrollView)
+        scrollView.addSubview(tableView)
+        
+        fetchTransactions()
+        
+        setupTableHeaderView()
+        setupTableFooterView()
+        
+        tableView.reloadData()
+        
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        
+        tableView.rowHeight = 50
+        
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: view.topAnchor, constant: 100),
+            scrollView.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: 100),
+            scrollView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            
+            tableView.topAnchor.constraint(equalTo: scrollView.topAnchor),
+            tableView.bottomAnchor.constraint(equalTo: scrollView.bottomAnchor),
+            tableView.leadingAnchor.constraint(equalTo: scrollView.leadingAnchor),
+            tableView.trailingAnchor.constraint(equalTo: scrollView.trailingAnchor),
+            tableView.widthAnchor.constraint(equalToConstant: 800),
+            tableView.heightAnchor.constraint(equalTo: scrollView.heightAnchor)
+        ])
+        
+    }
+    
+    func fetchTransactions() {
+        let context = (UIApplication.shared.delegate as! AppDelegate).persistentContainer.viewContext
+        
+        let fetchRequest: NSFetchRequest<Transaction> = Transaction.fetchRequest()
+        
+        do {
+            transactions = try context.fetch(fetchRequest)
+        } catch {
+            print("Failed to fetch transaction request \(error.localizedDescription)")
+        }
+    }
+    
+    private func createHeaderLabel(withText text: String) -> UILabel {
+        let label = UILabel()
+        label.text = text
+        label.textAlignment = .center
+        label.font = UIFont.boldSystemFont(ofSize: 14)
+        label.translatesAutoresizingMaskIntoConstraints = false
+        return label
+    }
+    
+    private func setupTableHeaderView() {
+        let headerView = UIView()
+        headerView.backgroundColor = .lightGray
+        
+        let transactionTimeLabel = createHeaderLabel(withText: "Time")
+        let buyPriceLabel = createFooterLabel(withText: "Buy Price")
+        let sellPriceLabel = createFooterLabel(withText: "Sell Price")
+        let profitLabel = createFooterLabel(withText: "Profit")
+        let transactionNameLabel = createFooterLabel(withText: "Transaction Name (optional)")
+        
+        let labels = [transactionTimeLabel, buyPriceLabel, sellPriceLabel, profitLabel, transactionNameLabel]
+        
+        let stackView = UIStackView(arrangedSubviews: labels)
+        stackView.axis = .horizontal
+        stackView.distribution = .fillEqually
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        headerView.addSubview(stackView)
+        
+        NSLayoutConstraint.activate([
+            stackView.topAnchor.constraint(equalTo: headerView.topAnchor),
+            stackView.bottomAnchor.constraint(equalTo: headerView.bottomAnchor),
+            stackView.leadingAnchor.constraint(equalTo: headerView.leadingAnchor),
+            stackView.trailingAnchor.constraint(equalTo: headerView.trailingAnchor)
+        ])
+        
+        
+        headerView.frame = CGRect(x: 0, y: 0, width: 800, height: 60)
+        tableView.tableHeaderView = headerView
+    }
+    
+    private func setupTableFooterView() {
+        let footerView = UIView()
+        footerView.backgroundColor = .lightGray
+        
+        let (totalBuyPrice, totalSellPrice, totalProfit) = calculateTotals()
+        
+        let buyPriceAvg = totalBuyPrice / transactions.count
+        let sellPriceAvg = totalSellPrice / transactions.count
+        let profitAvg = Int(totalProfit) / transactions.count
+        
+        let transactionLabel = createFooterLabel(withText: "Averages")
+        let buyPriceLabel = createFooterLabel(withText: "\(buyPriceAvg)")
+        let sellPriceLabel = createFooterLabel(withText: "\(sellPriceAvg)")
+        let profitLabel = createFooterLabel(withText: "\(profitAvg)")
+        let cardNameLabel = createFooterLabel(withText: "")
+        
+        let labels = [transactionLabel, buyPriceLabel, sellPriceLabel, profitLabel, cardNameLabel]
+        
+        let stackView = UIStackView(arrangedSubviews: labels)
+        stackView.axis = NSLayoutConstraint.Axis.horizontal
+        stackView.distribution = UIStackView.Distribution.fillEqually
+        stackView.translatesAutoresizingMaskIntoConstraints = false
+        footerView.addSubview(stackView)
+        
+        NSLayoutConstraint.activate([
+            stackView.topAnchor.constraint(equalTo: footerView.topAnchor),
+            stackView.bottomAnchor.constraint(equalTo: footerView.bottomAnchor),
+            stackView.leadingAnchor.constraint(equalTo: footerView.leadingAnchor),
+            stackView.trailingAnchor.constraint(equalTo: footerView.trailingAnchor)
+        ])
+        
+        footerView.frame = CGRect(x: 0, y: 0, width: 800, height: 40)
+        tableView.tableFooterView = footerView
+    }
+    
+    func calculateTotals() -> (totalBuyPrice: Int, totalSellPrice: Int, totalProfit: Double) {
+        var totalBuyPrice = 0
+        var totalSellPrice = 0
+        var totalProfit = 0.0
+        
+        for transaction in transactions {
+            totalBuyPrice += Int(transaction.buyPrice)
+            totalSellPrice += Int(transaction.sellPrice)
+            totalProfit += transaction.profit
+        }
+        return (totalBuyPrice, totalSellPrice, totalProfit)
+    }
+    
+    @objc private func confirmDelete(at indexPath: IndexPath) {
+        let alertController = UIAlertController(title: "Delete Transaction", message: "Are you sure you want to delete this transaction?", preferredStyle: .alert)
+        
+        let confirmAction = UIAlertAction(title: "Yes", style: .destructive) { [weak self] _ in
+            self?.deleteTransaction(at: indexPath)
+        }
+        let cancelAction = UIAlertAction(title: "No", style: .destructive)
+        
+        alertController.addAction(confirmAction)
+        alertController.addAction(cancelAction)
+        
+        present(alertController, animated: true, completion: nil)
+    }
+    
+    private func deleteTransaction(at indexPath: IndexPath) {
+        let transactionToDelete = transactions[indexPath.row]
+        
+        guard let appDelegate = UIApplication.shared.delegate as? AppDelegate else { return }
+        let context = appDelegate.persistentContainer.viewContext
+        
+        context.delete(transactionToDelete)
+        
+        do {
+            try context.save()
+            transactions.remove(at: indexPath.row)
+            tableView.deleteRows(at: [indexPath], with: .automatic)
+            calculateTotals()
+            setupTableFooterView()
+            updateTransactionsNum()
+            tableView.reloadData()
+        } catch {
+            print("Failed to delete transaction \(error)")
+        }
+    }
+    
+    func updateTransactionsNum() -> Int{
+        let count = (transactions.count - 1)
+        return count
+    }
+}
